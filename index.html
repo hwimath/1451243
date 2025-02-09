@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>일차부등식 빈출 (2)</title>
+  <!-- MathJax for LaTeX rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
+  <style>
+    body {
+      background-color: #fff;
+      color: #000;
+      font-family: sans-serif;
+      margin: 20px;
+      line-height: 1.6;
+    }
+    #energyBarContainer {
+      width: 300px;
+      height: 20px;
+      border: 1px solid #000;
+      background-color: #fff;
+      margin: 10px 0;
+    }
+    #energyBar {
+      height: 100%;
+      background-color: #000;
+      width: 100%;
+    }
+    button {
+      margin: 5px 0;
+    }
+  </style>
+</head>
+<body>
+  <!-- 시작 화면 -->
+  <div id="startScreen">
+    <h1>일차부등식 빈출 (2)</h1>
+    <label for="playerName">이름: </label>
+    <input type="text" id="playerName" />
+    <br>
+    <label>난이도 선택: </label>
+    <select id="difficulty">
+      <option value="최상">최상 (20초/문제, 20점)</option>
+      <option value="상">상 (30초/문제, 15점)</option>
+      <option value="중">중 (40초/문제, 13점)</option>
+      <option value="하">하 (시간제한 없음, 10점)</option>
+    </select>
+    <br>
+    <button id="startButton">시작</button>
+  </div>
+
+  <!-- 게임 화면 -->
+  <div id="gameScreen" style="display:none;">
+    <div>전체 게임 시간: <span id="gameTimer">0</span></div>
+    <div>남은 기회: <span id="lives">3</span></div>
+    <div>점수: <span id="score">0</span></div>
+    <div id="energyBarContainer" style="display:none;">
+      <div id="energyBar"></div>
+    </div>
+    <div id="questionContainer"></div>
+    <div id="feedback"></div>
+    <button id="nextButton" disabled>다음 문제</button>
+  </div>
+
+  <!-- 종료 화면 -->
+  <div id="endScreen" style="display:none;">
+    <h2>게임 종료</h2>
+    <div>최종 점수: <span id="finalScore"></span></div>
+    <div>총 게임 시간: <span id="finalTime"></span></div>
+    <button id="sendScoreButton">점수전송</button>
+    <pre id="response"></pre>
+  </div>
+
+  <script>
+    // 문제 35개(유형별 7문제씩). 일부 보기5는 항상 참이 되지 않도록 조정하여 x에 대한 실제 제한이 생기게 함.
+    // 보기 중 정답도 "1,5"가 되도록 수정.
+    var questions = [
+      // [유형 A] 특정 x 집합 내에서 부등식 해의 개수
+      {
+        question: "x의 값이 0, 1, 2, 3, 4일 때, 부등식 \\(2x - 4 \\leq 8 - x\\)의 해가 되는 x의 개수는 몇 개인가?",
+        options: ["3개", "4개", "5개", "2개", "1개"],
+        correct: "5개"
+      },
+      {
+        question: "x의 값이 1, 2, 3, 4, 5일 때, 부등식 \\(4x - 5 \\leq 3 - x\\)의 해가 되는 x의 개수는 몇 개인가?",
+        options: ["1개", "2개", "3개", "4개", "5개"],
+        correct: "1개"
+      },
+      {
+        question: "x의 값이 0, 1, 2, 3, 4일 때, 부등식 \\(5x + 2 \\leq 18 - 2x\\)의 해가 되는 x의 개수는 몇 개인가?",
+        options: ["3개", "2개", "4개", "1개", "5개"],
+        correct: "3개"
+      },
+      {
+        question: "x의 값이 1, 2, 3, 4, 5일 때, 부등식 \\(3x - 2 \\leq 12 - 2x\\)의 해가 되는 x의 개수는 몇 개인가?",
+        options: ["1개", "2개", "3개", "4개", "5개"],
+        correct: "2개"
+      },
+      {
+        question: "x의 값이 2, 3, 4, 5, 6일 때, 부등식 \\(2x - 3 \\leq 11 - x\\)의 해가 되는 x의 개수는 몇 개인가?",
+        options: ["2개", "3개", "4개", "1개", "5개"],
+        correct: "3개"
+      },
+      {
+        question: "x의 값이 0, 1, 2, 3, 4일 때, 부등식 \\(6x - 1 \\leq 5 - x\\)의 해가 되는 x의 개수는 몇 개인가?",
+        options: ["0개", "1개", "2개", "3개", "4개"],
+        correct: "1개"
+      },
+      {
+        question: "x의 값이 1, 2, 3, 4, 5일 때, 부등식 \\(2x + 1 \\leq 3 - x\\)의 해가 되는 x의 개수는 몇 개인가?",
+        options: ["0개", "1개", "2개", "3개", "4개"],
+        correct: "0개"
+      },
+
+      // [유형 B] 주어진 구간에서 일차식의 값 범위
+      {
+        question: "\\(-4 < x \\leq 2\\)이고, \\(B = 2 - 3x\\)일 때, B의 값의 범위는?",
+        options: ["\\(-4 \\leq B < 14\\)", "\\(-14 < B \\leq 4\\)", "\\(-4 < B \\leq 14\\)", "\\(4 \\leq B < 14\\)", "\\(-14 \\leq B < 4\\)"],
+        correct: "\\(-4 \\leq B < 14\\)"
+      },
+      {
+        question: "\\(-2 < x \\leq 3\\)이고, \\(C = 1 - x\\)일 때, C의 값의 범위는?",
+        options: ["\\(-2 \\leq C < 3\\)", "\\(-3 < C \\leq 2\\)", "\\(-3 \\leq C < 2\\)", "\\(2 < C \\leq 3\\)", "\\(2 \\leq C < 3\\)"],
+        correct: "\\(-2 \\leq C < 3\\)"
+      },
+      {
+        question: "\\(0 < x \\leq 4\\)이고, \\(D = 5 - 2x\\)일 때, D의 값의 범위는?",
+        options: ["\\(-3 \\leq D < 5\\)", "\\(-5 < D \\leq 3\\)", "\\(-5 \\leq D < 3\\)", "\\(3 < D \\leq 5\\)", "\\(3 \\leq D < 5\\)"],
+        correct: "\\(-3 \\leq D < 5\\)"
+      },
+      {
+        question: "\\(-1 < x \\leq 5\\)이고, \\(E = 3 - x\\)일 때, E의 값의 범위는?",
+        options: ["\\(-2 \\leq E < 4\\)", "\\(-4 < E \\leq 2\\)", "\\(-4 \\leq E < 2\\)", "\\(2 < E \\leq 4\\)", "\\(2 \\leq E < 4\\)"],
+        correct: "\\(-2 \\leq E < 4\\)"
+      },
+      {
+        question: "\\(-5 < x \\leq 0\\)이고, \\(F = 4 - 2x\\)일 때, F의 값의 범위는?",
+        options: ["\\(4 \\leq F < 14\\)", "\\(4 \\leq F < 15\\)", "\\((-14) < F \\leq 4\\)", "\\(4 < F \\leq 14\\)", "\\(0 \\leq F < 10\\)"],
+        correct: "\\(4 \\leq F < 14\\)"
+      },
+      {
+        question: "\\(-3 < x \\leq 2\\)이고, \\(G = 1 - 4x\\)일 때, G의 값의 범위는?",
+        options: ["\\(-7 \\leq G < 13\\)", "\\(-13 < G \\leq 7\\)", "\\(-7 < G \\leq 13\\)", "\\(7 < G \\leq 13\\)", "\\(-13 \\leq G < 7\\)"],
+        correct: "\\(-7 \\leq G < 13\\)"
+      },
+      {
+        question: "\\(-2 < x \\leq 6\\)이고, \\(H = 2 - 3x\\)일 때, H의 값의 범위는?",
+        options: ["\\(-16 \\leq H < 8\\)", "\\(-8 < H \\leq 16\\)", "\\(-16 < H \\leq 8\\)", "\\(8 < H \\leq 16\\)", "\\(-8 \\leq H < 16\\)"],
+        correct: "\\(-16 \\leq H < 8\\)"
+      },
+
+      // [유형 C] 보기 중 일차부등식인 것(해가 ‘일차식’ 형태로 정리되는 것)만 고르기
+      // (보기 5번은 항상 x에 대한 실제 조건(x <= ... 등)이 남도록 조정. => 정답 "1,5")
+      {
+        question: "다음 보기에서 일차부등식인 것을 모두 고르시오.<br><br>" +
+                  "1. \\(x + 5 \\leq 2x - 3\\)<br>" +
+                  "2. \\(x(x + 2) \\geq 3x\\)<br>" +
+                  "3. \\(4 + 7x < 7x + 10\\)<br>" +
+                  "4. \\(\\dfrac{5}{x} \\leq 2\\)<br>" +
+                  "5. \\(3x^2 + x \\leq x(3x + 2) + 1\\)",
+        options: ["1, 2", "1, 3", "2, 3", "3, 4", "1, 5"],
+        correct: "1, 5"
+      },
+      {
+        question: "다음 보기에서 일차부등식인 것을 모두 고르시오.<br><br>" +
+                  "1. \\(2x - 3 \\leq 4x + 1\\)<br>" +
+                  "2. \\(x(x - 2) \\geq -3x\\)<br>" +
+                  "3. \\(5 + 3x < 3x + 8\\)<br>" +
+                  "4. \\(\\dfrac{6}{x} \\geq 2\\)<br>" +
+                  "5. \\(4x^2 + 2x \\leq x(4x + 3) + 2\\)",
+        options: ["1, 2", "1, 3", "2, 3", "3, 4", "1, 5"],
+        correct: "1, 5"
+      },
+      {
+        question: "다음 보기에서 일차부등식인 것을 모두 고르시오.<br><br>" +
+                  "1. \\(3x + 2 \\leq 5x - 1\\)<br>" +
+                  "2. \\(x^2 - x \\geq 2x\\)<br>" +
+                  "3. \\(7 + x < x + 10\\)<br>" +
+                  "4. \\(\\dfrac{8}{x} \\leq 4\\)<br>" +
+                  "5. \\(2x^2 + x \\leq x(2x + 2) + 1\\)",
+        options: ["1, 2", "1, 3", "2, 3", "3, 4", "1, 5"],
+        correct: "1, 5"
+      },
+      {
+        question: "다음 보기에서 일차부등식인 것을 모두 고르시오.<br><br>" +
+                  "1. \\(x - 4 \\leq 2x + 6\\)<br>" +
+                  "2. \\(2x(x - 1) \\geq -x\\)<br>" +
+                  "3. \\(9 + 4x < 4x + 14\\)<br>" +
+                  "4. \\(\\dfrac{7}{x} \\geq 3\\)<br>" +
+                  // 여기서 #5를 수정: 5x^2 + x <= x(5x + 2) + 3 (=> x <= 3)
+                  "5. \\(5x^2 + x \\leq x(5x + 2) + 3\\)",
+        options: ["1, 2", "1, 3", "2, 3", "3, 4", "1, 5"],
+        correct: "1, 5"
+      },
+      {
+        question: "다음 보기에서 일차부등식인 것을 모두 고르시오.<br><br>" +
+                  "1. \\(2x + 7 \\leq 3x + 1\\)<br>" +
+                  "2. \\(x(x + 3) \\geq -2x\\)<br>" +
+                  "3. \\(8 + 6x < 6x + 12\\)<br>" +
+                  "4. \\(\\dfrac{9}{x} \\leq 3\\)<br>" +
+                  "5. \\(4x^2 + 3x \\leq x(4x + 2) + 5\\)",
+        options: ["1, 2", "1, 3", "2, 3", "3, 4", "1, 5"],
+        correct: "1, 5"
+      },
+      {
+        question: "다음 보기에서 일차부등식인 것을 모두 고르시오.<br><br>" +
+                  "1. \\(4x - 2 \\leq 6x + 5\\)<br>" +
+                  "2. \\(x(x - 3) \\geq 5x\\)<br>" +
+                  "3. \\(3 + 2x < 2x + 8\\)<br>" +
+                  "4. \\(\\dfrac{10}{x} \\geq 4\\)<br>" +
+                  "5. \\(6x^2 + 2x \\leq x(6x + 3) + 2\\)",
+        options: ["1, 2", "1, 3", "2, 3", "3, 4", "1, 5"],
+        correct: "1, 5"
+      },
+      {
+        question: "다음 보기에서 일차부등식인 것을 모두 고르시오.<br><br>" +
+                  "1. \\(5x + 1 \\leq 7x - 4\\)<br>" +
+                  "2. \\(x(x + 1) \\geq -2x\\)<br>" +
+                  "3. \\(10 + 3x < 3x + 16\\)<br>" +
+                  "4. \\(\\dfrac{12}{x} \\leq 4\\)<br>" +
+                  "5. \\(7x^2 + x \\leq x(7x + 2) + 3\\)",
+        options: ["1, 2", "1, 3", "2, 3", "3, 4", "1, 5"],
+        correct: "1, 5"
+      },
+
+      // [유형 D] x가 어떤 자연수 이상일 때, 해가 되는 x의 개수
+      {
+        question: "x가 4 이상의 자연수일 때, 부등식 \\(4x - 5 < 20\\)의 해가 되는 x는 모두 몇 개인가?",
+        options: ["1개", "2개", "3개", "4개", "5개"],
+        correct: "3개"
+      },
+      {
+        question: "x가 2 이상의 자연수일 때, 부등식 \\(2x - 3 < 13\\)의 해가 되는 x는 모두 몇 개인가?",
+        options: ["4개", "5개", "6개", "7개", "8개"],
+        correct: "6개"
+      },
+      {
+        question: "x가 5 이상의 자연수일 때, 부등식 \\(5x - 4 < 26\\)의 해가 되는 x는 모두 몇 개인가?",
+        options: ["1개", "2개", "3개", "4개", "5개"],
+        correct: "1개"
+      },
+      {
+        question: "x가 1 이상의 자연수일 때, 부등식 \\(3x + 2 < 17\\)의 해가 되는 x는 모두 몇 개인가?",
+        options: ["2개", "3개", "4개", "5개", "6개"],
+        correct: "4개"
+      },
+      {
+        question: "x가 6 이상의 자연수일 때, 부등식 \\(2x - 1 < 25\\)의 해가 되는 x는 모두 몇 개인가?",
+        options: ["5개", "6개", "7개", "8개", "9개"],
+        correct: "7개"
+      },
+      {
+        question: "x가 3 이상의 자연수일 때, 부등식 \\(4x - 8 < 24\\)의 해가 되는 x는 모두 몇 개인가?",
+        options: ["3개", "4개", "5개", "6개", "7개"],
+        correct: "5개"
+      },
+      {
+        question: "x가 2 이상의 자연수일 때, 부등식 \\(5x - 6 < 29\\)의 해가 되는 x는 모두 몇 개인가?",
+        options: ["3개", "4개", "5개", "6개", "7개"],
+        correct: "5개"
+      },
+
+      // [유형 E] 다섯 개 부등식 중 해가 나머지와 다른 것 골라내기
+      {
+        question: "다음 일차부등식들 중에서, 해가 나머지 넷과 다른 것은 어느 것인가?<br><br>" +
+                  "① \\(2x \\leq 8\\)<br>" +
+                  "② \\(5x - 10 \\leq x + 6\\)<br>" +
+                  "③ \\(6x - 3 \\leq 2x + 13\\)<br>" +
+                  "④ \\(8x - 5 \\leq 4x + 11\\)<br>" +
+                  "⑤ \\(9 - 2x \\leq 3x - 5\\)",
+        options: ["①", "②", "③", "④", "⑤"],
+        correct: "⑤"
+      },
+      {
+        question: "다음 일차부등식들 중에서, 해가 나머지 넷과 다른 것은 어느 것인가?<br><br>" +
+                  "① \\(3x \\leq 9\\)<br>" +
+                  "② \\(2x - 1 \\leq x + 2\\)<br>" +
+                  "③ \\(5x - 4 \\leq 2x + 5\\)<br>" +
+                  "④ \\(6x - 2 \\leq 3x + 7\\)<br>" +
+                  "⑤ \\(2x + 5 \\leq 3x + 2\\)",
+        options: ["①", "②", "③", "④", "⑤"],
+        correct: "⑤"
+      },
+      {
+        question: "다음 일차부등식들 중에서, 해가 나머지 넷과 다른 것은 어느 것인가?<br><br>" +
+                  "① \\(2x \\leq 4\\)<br>" +
+                  "② \\(4x - 3 \\leq 2x + 1\\)<br>" +
+                  "③ \\(5x - 2 \\leq 3x + 2\\)<br>" +
+                  "④ \\(6x + 1 \\leq 4x + 5\\)<br>" +
+                  "⑤ \\(2x + 3 \\leq 5x - 4\\)",
+        options: ["①", "②", "③", "④", "⑤"],
+        correct: "⑤"
+      },
+      {
+        question: "다음 일차부등식들 중에서, 해가 나머지 넷과 다른 것은 어느 것인가?<br><br>" +
+                  "① \\(3x \\leq 15\\)<br>" +
+                  "② \\(5x - 7 \\leq 2x + 8\\)<br>" +
+                  "③ \\(6x + 2 \\leq 3x + 17\\)<br>" +
+                  "④ \\(7x - 4 \\leq 4x + 11\\)<br>" +
+                  "⑤ \\(9x + 1 \\leq 3x - 14\\)",
+        options: ["①", "②", "③", "④", "⑤"],
+        correct: "⑤"
+      },
+      {
+        question: "다음 일차부등식들 중에서, 해가 나머지 넷과 다른 것은 어느 것인가?<br><br>" +
+                  "① \\(2x \\leq 12\\)<br>" +
+                  "② \\(5x - 4 \\leq 3x + 8\\)<br>" +
+                  "③ \\(7x + 3 \\leq 5x + 15\\)<br>" +
+                  "④ \\(6x - 2 \\leq 4x + 10\\)<br>" +
+                  "⑤ \\(8x - 5 \\leq 2x + 7\\)",
+        options: ["①", "②", "③", "④", "⑤"],
+        correct: "⑤"
+      },
+      {
+        question: "다음 일차부등식들 중에서, 해가 나머지 넷과 다른 것은 어느 것인가?<br><br>" +
+                  "① \\(3x \\leq 21\\)<br>" +
+                  "② \\(5x - 8 \\leq 2x + 13\\)<br>" +
+                  "③ \\(6x + 1 \\leq 3x + 22\\)<br>" +
+                  "④ \\(8x - 4 \\leq 5x + 17\\)<br>" +
+                  "⑤ \\(2x + 10 \\leq 7x - 5\\)",
+        options: ["①", "②", "③", "④", "⑤"],
+        correct: "⑤"
+      },
+      {
+        question: "다음 일차부등식들 중에서, 해가 나머지 넷과 다른 것은 어느 것인가?<br><br>" +
+                  "① \\(2x \\leq 16\\)<br>" +
+                  "② \\(4x - 5 \\leq 2x + 11\\)<br>" +
+                  "③ \\(5x - 3 \\leq 3x + 13\\)<br>" +
+                  "④ \\(6x + 2 \\leq 4x + 18\\)<br>" +
+                  "⑤ \\(8x - 4 \\leq 2x + 20\\)",
+        options: ["①", "②", "③", "④", "⑤"],
+        correct: "⑤"
+      }
+    ];
+
+    // 게임 상태 변수
+    var currentQuestionIndex = 0;
+    var score = 0;
+    var lives = 3;
+    var totalQuestionsAsked = 0;
+    var timerInterval;
+    var gameStartTime;
+    var questionTimerInterval;
+    var currentTimeLimit; // 밀리초 단위
+    var remainingTime;
+    var currentDifficulty;
+
+    // 난이도별 시간제한(초) 및 문제당 점수
+    var difficultyTimeLimits = { "최상": 20, "상": 30, "중": 40, "하": null };
+    var pointsPerQuestion = { "최상": 20, "상": 15, "중": 13, "하": 10 };
+
+    // 배열 섞기 함수
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    // 문제 표시 함수
+    function showQuestion() {
+      // 35문제를 모두 소진 후에는 무작위 반복
+      if (totalQuestionsAsked >= questions.length) {
+        currentQuestionIndex = Math.floor(Math.random() * questions.length);
+      } else {
+        currentQuestionIndex = totalQuestionsAsked;
+      }
+      totalQuestionsAsked++;
+
+      var q = questions[currentQuestionIndex];
+      var container = document.getElementById("questionContainer");
+      container.innerHTML = "<p>" + q.question + "</p>";
+
+      // 보기 순서 무작위
+      var opts = q.options.slice();
+      shuffleArray(opts);
+      var optionsHtml = "";
+      for (let opt of opts) {
+        optionsHtml += "<button class='optionButton'>" + opt + "</button><br>";
+      }
+      container.innerHTML += optionsHtml;
+
+      // 피드백 초기화 및 '다음 문제' 버튼 비활성
+      document.getElementById("feedback").innerHTML = "";
+      document.getElementById("nextButton").disabled = true;
+
+      // 보기 버튼에 클릭 이벤트
+      var buttons = document.getElementsByClassName("optionButton");
+      for (let btn of buttons) {
+        btn.addEventListener("click", function() {
+          // 이미 선택한 뒤 다시 클릭 막기
+          if (document.getElementById("nextButton").disabled === false) return;
+
+          if (questionTimerInterval) {
+            clearInterval(questionTimerInterval);
+            questionTimerInterval = null;
+          }
+          var selected = btn.innerText;
+          if (selected === q.correct) {
+            document.getElementById("feedback").innerHTML = "<p>정답!</p>";
+            score += pointsPerQuestion[currentDifficulty];
+            document.getElementById("score").innerText = score;
+          } else {
+            document.getElementById("feedback").innerHTML = "<p>오답! 정답: " + q.correct + "</p>";
+            lives--;
+            document.getElementById("lives").innerText = lives;
+            if (lives <= 0) {
+              endGame();
+              return;
+            }
+          }
+          // 답 후 보기 비활성화
+          for (let b of buttons) { b.disabled = true; }
+          document.getElementById("nextButton").disabled = false;
+          MathJax.typeset();
+        });
+      }
+
+      // 난이도에 따른 에너지바 타이머
+      if (difficultyTimeLimits[currentDifficulty] !== null) {
+        currentTimeLimit = difficultyTimeLimits[currentDifficulty] * 1000;
+        remainingTime = currentTimeLimit;
+        document.getElementById("energyBarContainer").style.display = "block";
+        document.getElementById("energyBar").style.width = "100%";
+        questionTimerInterval = setInterval(function() {
+          remainingTime -= 100;
+          var percentage = (remainingTime / currentTimeLimit) * 100;
+          document.getElementById("energyBar").style.width = percentage + "%";
+          if (remainingTime <= 0) {
+            clearInterval(questionTimerInterval);
+            questionTimerInterval = null;
+            document.getElementById("feedback").innerHTML =
+              "<p>시간 초과! 정답: " + q.correct + "</p>";
+            lives--;
+            document.getElementById("lives").innerText = lives;
+            var btns = document.getElementsByClassName("optionButton");
+            for (let b of btns) { b.disabled = true; }
+            document.getElementById("nextButton").disabled = false;
+            if (lives <= 0) { endGame(); }
+            MathJax.typeset();
+          }
+        }, 100);
+      } else {
+        document.getElementById("energyBarContainer").style.display = "none";
+      }
+
+      // 수식 렌더링
+      MathJax.typeset();
+    }
+
+    function nextQuestion() {
+      showQuestion();
+    }
+
+    function endGame() {
+      clearInterval(timerInterval);
+      document.getElementById("gameScreen").style.display = "none";
+      document.getElementById("endScreen").style.display = "block";
+      document.getElementById("finalScore").innerText = score;
+      var elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
+      document.getElementById("finalTime").innerText = elapsed + "초";
+    }
+
+    // 시작 버튼
+    document.getElementById("startButton").addEventListener("click", function() {
+      var name = document.getElementById("playerName").value;
+      if (!name) { alert("이름을 입력하세요."); return; }
+      currentDifficulty = document.getElementById("difficulty").value;
+
+      shuffleArray(questions);
+      document.getElementById("startScreen").style.display = "none";
+      document.getElementById("gameScreen").style.display = "block";
+
+      gameStartTime = Date.now();
+      timerInterval = setInterval(function() {
+        var elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
+        document.getElementById("gameTimer").innerText = elapsed;
+      }, 1000);
+
+      showQuestion();
+    });
+
+    document.getElementById("nextButton").addEventListener("click", function() {
+      if (this.disabled) return;
+      if (lives <= 0) return;
+      showQuestion();
+    });
+
+    // 점수 전송 버튼
+    document.getElementById("sendScoreButton").addEventListener("click", function() {
+      var name = document.getElementById("playerName").value;
+      var elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
+      saveData("일차부등식 빈출 (2)", name, score, elapsed);
+    });
+
+    // 점수 전송 함수
+    function saveData(game, name, score, elapsedTime) {
+        const FUNCTION_URL = "https://us-central1-record-f420d.cloudfunctions.net/report";
+
+        const requestData = {
+            game,
+            name,
+            score: parseInt(score, 10),
+            elapsedTime: parseInt(elapsedTime, 10)
+        };
+
+        try {
+            const response = fetch(FUNCTION_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            response.then(res => res.json()).then(responseData => {
+                if (response.ok) {
+                    document.getElementById('response').innerText =
+                        "성공: " + JSON.stringify(responseData, null, 2);
+                } else {
+                    document.getElementById('response').innerText =
+                        "오류: " + JSON.stringify(responseData, null, 2);
+                }
+            });
+        } catch (error) {
+            console.error('요청 실패:', error);
+            document.getElementById('response').innerText =
+                "네트워크 오류: " + error.message;
+        }
+    }
+  </script>
+</body>
+</html>
